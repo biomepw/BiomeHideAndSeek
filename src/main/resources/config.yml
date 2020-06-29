@@ -1,0 +1,12 @@
+# +----------------------------------------------------------------------------------------------+ #
+# |                                                                                              | #
+# |                                    HideAndSeek                                               | #
+# |                                                                                              | #
+# |                       https://github.com/OJS05/HideAndSeek                                   | #
+# |                                                                                              | #
+# +----------------------------------------------------------------------------------------------+ #
+
+# This option defines how long the game length will be in hours
+game-length: 4
+
+exempt-players: []

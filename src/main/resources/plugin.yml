@@ -1,0 +1,12 @@
+name: HideAndSeek
+version: ${project.version}
+main: pw.biome.hideandseek.HideAndSeek
+api-version: 1.13
+authors: [ojs05]
+softdepend: [iChat]
+description: This plugin creates a game where the seekers are trying to the hiders.
+commands:
+  hideandseek:
+    description: Base command
+    usage: /hideandseek
+    aliases: [hs]
