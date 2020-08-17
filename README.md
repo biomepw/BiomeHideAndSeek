@@ -1,4 +1,2 @@
-# HideAndSeek
-
-Plugin for Biome, created by OJS05
+# BiomeHideAndSeek ![build status](https://ci.husk.pro/BiomeHideAndSeek/badge)
  

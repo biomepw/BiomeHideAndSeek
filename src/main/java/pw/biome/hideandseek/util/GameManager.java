@@ -7,8 +7,9 @@ import net.md_5.bungee.api.ChatColor;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
-import pro.husk.ichat.iChat;
-import pro.husk.ichat.obj.PlayerCache;
+import pw.biome.biomechat.BiomeChat;
+import pw.biome.biomechat.obj.PlayerCache;
+import pw.biome.biomechat.obj.ScoreboardHook;
 import pw.biome.hideandseek.HideAndSeek;
 import pw.biome.hideandseek.objects.HSPlayer;
 import pw.biome.hideandseek.objects.HSTeam;
@@ -18,7 +19,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
-public class GameManager {
+public class GameManager implements ScoreboardHook {
 
     @Getter
     private final ThreadLocalRandom random = ThreadLocalRandom.current();
@@ -45,7 +46,15 @@ public class GameManager {
     @Getter
     private final List<UUID> exemptPlayers = new ArrayList<>();
 
+    private int scoreboardTaskId;
+
     public void setupGame() {
+        // Take control of the scoreboard
+        BiomeChat biomeChat = BiomeChat.getPlugin();
+        biomeChat.stopScoreboardTask();
+        biomeChat.registerHook(this);
+        biomeChat.restartScoreboardTask();
+
         this.hiders = new HSTeam("Hider", TeamType.HIDER);
         this.seekers = new HSTeam("Seeker", TeamType.SEEKER);
 
@@ -104,39 +113,38 @@ public class GameManager {
             if (!bukkitTask.isCancelled()) bukkitTask.cancel();
         });
 
-        iChat.getPlugin().restartScoreboardTask();
+        // Give control of the scoreboard back
+        BiomeChat biomeChat = BiomeChat.getPlugin();
+        this.stopScoreboardTask();
+        biomeChat.unregisterHook(this);
+        biomeChat.restartScoreboardTask();
 
         saveExemptList();
     }
 
     public void updateScoreboards() {
         if (gameRunning) {
-            // We want to overwrite the updateScoreboard of iChat
-            iChat.getPlugin().stopScoreboardTask();
+            ImmutableList<Player> onlinePlayers = ImmutableList.copyOf(Bukkit.getServer().getOnlinePlayers());
+            onlinePlayers.forEach(player -> {
+                HSPlayer hsPlayer = HSPlayer.getExact(player.getUniqueId());
+                PlayerCache playerCache = PlayerCache.getFromUUID(player.getUniqueId());
 
-            Bukkit.getScheduler().runTaskAsynchronously(HideAndSeek.getInstance(), () -> {
-                ImmutableList<Player> onlinePlayers = ImmutableList.copyOf(Bukkit.getServer().getOnlinePlayers());
-                onlinePlayers.forEach(player -> {
-                    HSPlayer hsPlayer = HSPlayer.getExact(player.getUniqueId());
-                    PlayerCache playerCache = PlayerCache.getFromUUID(player.getUniqueId());
+                ChatColor prefix = playerCache.getRank().getPrefix();
 
-                    ChatColor prefix = playerCache.getRank().getPrefix();
+                boolean afk = playerCache.isAFK();
 
-                    boolean afk = playerCache.isAFK();
+                if (afk) {
+                    prefix = ChatColor.GRAY;
+                }
 
-                    if (afk) {
-                        prefix = ChatColor.GRAY;
-                    }
-
-                    switch (hsPlayer.getCurrentTeam().getTeamType()) {
-                        case SEEKER:
-                            player.setPlayerListName(ChatColor.DARK_RED + player.getDisplayName());
-                        case HIDER:
-                            player.setPlayerListName(ChatColor.GOLD + player.getDisplayName());
-                        default:
-                            player.setPlayerListName(prefix + player.getDisplayName());
-                    }
-                });
+                switch (hsPlayer.getCurrentTeam().getTeamType()) {
+                    case SEEKER:
+                        player.setPlayerListName(ChatColor.DARK_RED + player.getDisplayName());
+                    case HIDER:
+                        player.setPlayerListName(ChatColor.GOLD + player.getDisplayName());
+                    default:
+                        player.setPlayerListName(prefix + player.getDisplayName());
+                }
             });
         }
     }
@@ -147,5 +155,21 @@ public class GameManager {
 
         HideAndSeek.getInstance().getConfig().set("exempt-players", uuidStringList);
         HideAndSeek.getInstance().saveConfig();
+    }
+
+    @Override
+    public void restartScoreboardTask() {
+        if (this.scoreboardTaskId != 0) {
+            Bukkit.getScheduler().runTaskTimerAsynchronously(HideAndSeek.getInstance(),
+                    this::updateScoreboards, 20, 20);
+        }
+    }
+
+    @Override
+    public void stopScoreboardTask() {
+        if (this.scoreboardTaskId != 0) {
+            Bukkit.getScheduler().cancelTask(scoreboardTaskId);
+            scoreboardTaskId = 0;
+        }
     }
 }
