@@ -1,2 +1,2 @@
-# BiomeHideAndSeek ![build status](https://ci.husk.pro/BiomeHideAndSeek/badge)
+# BiomeHideAndSeek ![build status](https://ci.biome.pw/BiomeHideAndSeek/badge)
  
