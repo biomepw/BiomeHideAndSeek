@@ -1,170 +1,108 @@
 package pw.biome.hideandseek.commands;
 
+import co.aikar.commands.BaseCommand;
+import co.aikar.commands.annotation.CommandAlias;
+import co.aikar.commands.annotation.CommandPermission;
+import co.aikar.commands.annotation.Default;
+import co.aikar.commands.annotation.Dependency;
+import co.aikar.commands.annotation.Description;
+import co.aikar.commands.annotation.Subcommand;
 import net.md_5.bungee.api.ChatColor;
 import org.bukkit.Bukkit;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
-import org.bukkit.entity.Player;
-import pw.biome.hideandseek.HideAndSeek;
 import pw.biome.hideandseek.objects.HSPlayer;
 import pw.biome.hideandseek.util.GameManager;
 import pw.biome.hideandseek.util.TeamType;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+@CommandAlias("hideandseek|hs")
+@Description("HideAndSeek commands")
+public class HSCommands extends BaseCommand {
 
-public class HSCommands implements CommandExecutor {
+    @Dependency
+    private GameManager gameManager;
 
-    private final List<UUID> cooldown = new ArrayList<>();
+    @Default
+    @Description("Shows the available commands")
+    public void defaultCommand(CommandSender sender) {
+        sender.sendMessage(ChatColor.DARK_AQUA + "HideAndSeek Commands:");
+        sender.sendMessage(ChatColor.AQUA + "/hideandseek list - Shows a list of whos on what team");
+    }
 
-    @Override
-    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-
-        GameManager gameManager = HideAndSeek.getInstance().getGameManager();
-
-        if (args.length == 0) {
-            sender.sendMessage(ChatColor.DARK_AQUA + "HideAndSeek Commands:");
-            sender.sendMessage(ChatColor.AQUA + "/hideandseek hint - Provides a small hint! Has a cooldown");
-            sender.sendMessage(ChatColor.AQUA + "/hideandseek list - Shows a list of whos on what team");
-        } else if (args.length == 1) {
-            if (args[0].equalsIgnoreCase("create")) {
-                if (sender.hasPermission("hideandseek.admin")) {
-                    gameManager.createGame();
-                }
-            }
-
-            if (args[0].equalsIgnoreCase("cancel")) {
-                if (sender.hasPermission("hideandseek.admin")) {
-                    gameManager.finishGame();
-                }
-            }
-
-            if (args[0].equalsIgnoreCase("hint")) {
-                if (gameManager.isGameRunning()) {
-                    if (sender instanceof Player) {
-                        Player player = (Player) sender;
-                        HSPlayer hsPlayer = HSPlayer.getExact(player.getUniqueId());
-                        if (gameManager.getSeekers().getMembers().contains(hsPlayer)) {
-                            if (!cooldown.contains(player.getUniqueId())) {
-                                Bukkit.getScheduler().runTaskAsynchronously(HideAndSeek.getInstance(), () -> {
-                                    int randomIndex = gameManager.getRandom().nextInt(gameManager.getHiders().getMembers().size());
-                                    HSPlayer randomHsPlayerHider = gameManager.getHiders().getMembers().get(randomIndex);
-
-                                    Player randomHider = Bukkit.getPlayer(randomHsPlayerHider.getUuid());
-
-                                    if (randomHider != null) {
-                                        sender.sendMessage(ChatColor.AQUA + "A random hider is at" + randomHider.getLocation().getBlockX() + ", "
-                                                + randomHider.getLocation().getBlockZ() + ".");
-
-                                        cooldown.add(player.getUniqueId());
-
-                                        Bukkit.getServer().getScheduler().runTaskLater(HideAndSeek.getInstance(), () ->
-                                                cooldown.remove(player.getUniqueId()), (gameManager.getSeekers().getMembers().size() * 180 * 20));
-                                    }
-                                });
-                            } else {
-                                sender.sendMessage(ChatColor.RED + "You are still on a cooldown!");
-                            }
-                        }
-
-                        if (gameManager.getHiders().getMembers().contains(hsPlayer)) {
-                            if (!cooldown.contains(player.getUniqueId())) {
-                                Bukkit.getScheduler().runTaskAsynchronously(HideAndSeek.getInstance(), () -> {
-
-                                    double distMin = 1000000000;
-                                    for (HSPlayer seekers : gameManager.getSeekers().getMembers()) {
-                                        Player seekerPlayer = Bukkit.getPlayer(seekers.getUuid());
-
-                                        if (seekerPlayer != null) {
-                                            double dist = player.getLocation().distance(seekerPlayer.getLocation());
-
-                                            if (dist < distMin) {
-                                                distMin = dist;
-                                            }
-                                        }
-                                    }
-
-                                    sender.sendMessage(ChatColor.AQUA + "The nearest seeker is " + ChatColor.DARK_RED + Math.round(distMin) + ChatColor.AQUA + " blocks away.");
-
-                                    cooldown.add(player.getUniqueId());
-
-                                    Bukkit.getServer().getScheduler().runTaskLater(HideAndSeek.getInstance(), () ->
-                                            cooldown.remove(player.getUniqueId()), (gameManager.getHiders().getMembers().size() * 120 * 20));
-                                });
-                            } else {
-                                sender.sendMessage(ChatColor.RED + "You are still on a cooldown!");
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (args[0].equalsIgnoreCase("list")) {
-                if (gameManager.isGameRunning()) {
-
-                    sender.sendMessage(ChatColor.DARK_RED + "Seekers:");
-                    gameManager.getSeekers().getMembers().forEach(hsPlayer ->
-                            sender.sendMessage(ChatColor.RED + "- " + hsPlayer.getName()));
-
-                    sender.sendMessage(ChatColor.GOLD + "Hiders:");
-                    gameManager.getHiders().getMembers().forEach(hsPlayer ->
-                            sender.sendMessage(ChatColor.GOLD + "- " + hsPlayer.getName()));
-                }
-            }
-
-            if (args[0].equalsIgnoreCase("rebuild")) {
-                if (sender.hasPermission("hideandseek.admin")) {
-                    HSPlayer.getHsPlayerMap().clear();
-                    Bukkit.getOnlinePlayers().forEach(player -> {
-                        HSPlayer hsPlayer = HSPlayer.getOrCreate(player.getUniqueId(), player.getDisplayName());
-                    });
-                    sender.sendMessage(ChatColor.GREEN + "Cache rebuilt");
-                }
-            }
-
-            if (args[0].equalsIgnoreCase("exempt")) {
-                if (sender instanceof Player) {
-                    Player player = (Player) sender;
-                    HSPlayer hsPlayer = HSPlayer.getExact(player.getUniqueId());
-
-                    if (!hsPlayer.isExempt()) {
-                        hsPlayer.setExempt(true);
-                    }
-                }
-            }
-        } else if (args.length == 2) {
-            if (args[0].equalsIgnoreCase("include")) {
-                if (sender.hasPermission("hideandseek.admin")) {
-                    Player target = Bukkit.getPlayer(args[1]);
-
-                    if (target != null) {
-                        HSPlayer hsPlayer = HSPlayer.getExact(target.getUniqueId());
-                        hsPlayer.setExempt(false);
-                    }
-                }
-            }
-        } else if (args.length == 3) {
-            if (args[0].equalsIgnoreCase("force")) {
-                if (sender.hasPermission("hideandseek.admin")) {
-                    Player target = Bukkit.getPlayer(args[1]);
-                    TeamType forceTeam = TeamType.valueOf(args[2]);
-
-                    if (target != null) {
-                        HSPlayer hsPlayer = HSPlayer.getExact(target.getUniqueId());
-
-                        if (forceTeam == TeamType.HIDER) {
-                            hsPlayer.setCurrentTeam(gameManager.getHiders(), true);
-                        } else if (forceTeam == TeamType.SEEKER) {
-                            hsPlayer.setCurrentTeam(gameManager.getSeekers(), true);
-                        } else {
-                            hsPlayer.setCurrentTeam(null, false);
-                        }
-                    }
-                }
-            }
+    @Subcommand("create")
+    @CommandPermission("hideandseek.admin")
+    @Description("Creates a HideAndSeek game")
+    public void create(CommandSender sender) {
+        if (!gameManager.isGameRunning()) {
+            gameManager.createGame();
+            sender.sendMessage(ChatColor.GREEN + "Created a HideAndSeek game!");
+        } else {
+            sender.sendMessage(ChatColor.RED + "A game is already running!");
         }
-        return true;
+    }
+
+    @Subcommand("cancel")
+    @CommandPermission("hideandseek.admin")
+    @Description("Cancels a HideAndSeek game")
+    public void cancel(CommandSender sender) {
+        if (gameManager.isGameRunning()) {
+            gameManager.finishGame();
+            sender.sendMessage(ChatColor.GREEN + "Cancelled the current HideAndSeek game!");
+        } else {
+            sender.sendMessage(ChatColor.RED + "A game isn't running!");
+        }
+    }
+
+    @Subcommand("list")
+    @CommandPermission("hideandseek.admin")
+    @Description("Lists the status of the players")
+    public void list(CommandSender sender) {
+        if (gameManager.isGameRunning()) {
+            sender.sendMessage(ChatColor.DARK_RED + "Seekers:");
+            gameManager.getSeekers().getMembers().forEach(hsPlayer ->
+                    sender.sendMessage(ChatColor.RED + "- " + hsPlayer.getName()));
+
+            sender.sendMessage(ChatColor.GOLD + "Hiders:");
+            gameManager.getHiders().getMembers().forEach(hsPlayer ->
+                    sender.sendMessage(ChatColor.GOLD + "- " + hsPlayer.getName()));
+        }
+    }
+
+    @Subcommand("rebuild")
+    @CommandPermission("hideandseek.admin")
+    @Description("Rebuilds the cache")
+    public void rebuild(CommandSender sender) {
+        HSPlayer.getHsPlayerMap().clear();
+        Bukkit.getOnlinePlayers().forEach(player -> {
+            HSPlayer hsPlayer = HSPlayer.getOrCreate(player.getUniqueId(), player.getDisplayName());
+        });
+        sender.sendMessage(ChatColor.GREEN + "Cache rebuilt");
+    }
+
+    @Subcommand("exempt")
+    @CommandPermission("hideandseek.admin")
+    @Description("Exempts a player from the current game")
+    public void exempt(CommandSender sender, HSPlayer hsPlayer) {
+        if (!hsPlayer.isExempt()) {
+            hsPlayer.setExempt(true);
+            sender.sendMessage(ChatColor.GREEN + "'" + hsPlayer.getName() + "' is now exempt!");
+        }
+    }
+
+    @Subcommand("force")
+    @CommandPermission("hideandseek.admin")
+    @Description("Forces a player to the given team in the current game")
+    public void force(CommandSender sender, HSPlayer hsPlayer, String teamName) {
+        TeamType forceTeam = TeamType.valueOf(teamName);
+
+        if (forceTeam == TeamType.HIDER) {
+            hsPlayer.setCurrentTeam(gameManager.getHiders(), true);
+            sender.sendMessage(ChatColor.GREEN + "Forced '" + hsPlayer.getName() + "' to " + ChatColor.GREEN + "HIDERS");
+        } else if (forceTeam == TeamType.SEEKER) {
+            hsPlayer.setCurrentTeam(gameManager.getSeekers(), true);
+            sender.sendMessage(ChatColor.GREEN + "Forced '" + hsPlayer.getName() + "' to " + ChatColor.RED + "SEEKERS");
+        } else {
+            hsPlayer.setCurrentTeam(null, false);
+            sender.sendMessage(ChatColor.GREEN + "Forced '" + hsPlayer.getName() + "' to " + ChatColor.RED + "null");
+        }
     }
 }

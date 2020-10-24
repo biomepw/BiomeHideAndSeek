@@ -1,9 +1,13 @@
 package pw.biome.hideandseek.objects;
 
+import co.aikar.commands.BukkitCommandExecutionContext;
+import co.aikar.commands.contexts.ContextResolver;
 import lombok.Getter;
 import net.md_5.bungee.api.ChatColor;
 import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 import pw.biome.hideandseek.HideAndSeek;
+import pw.biome.hideandseek.util.GameManager;
 
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -39,13 +43,26 @@ public class HSPlayer {
         hsPlayerMap.put(uuid, this);
     }
 
+    public static ContextResolver<HSPlayer, BukkitCommandExecutionContext> getContextResolver() {
+        return (c) -> {
+            Player player = c.getPlayer();
+            return HSPlayer.getOrCreate(player.getUniqueId(), player.getDisplayName());
+        };
+    }
+
     public void setExempt(boolean exempt) {
         this.exempt = exempt;
 
+        getCurrentTeam().removePlayer(this);
+
+        GameManager gameManager = HideAndSeek.getInstance().getGameManager();
+
         if (exempt) {
-            HideAndSeek.getInstance().getGameManager().getExemptPlayers().add(uuid);
+            gameManager.getExemptPlayers().add(uuid);
+            setCurrentTeam(null, false);
         } else {
-            HideAndSeek.getInstance().getGameManager().getExemptPlayers().remove(uuid);
+            gameManager.getExemptPlayers().remove(uuid);
+            setCurrentTeam(gameManager.getSeekers(), false);
         }
     }
 

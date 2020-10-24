@@ -8,13 +8,14 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 import pw.biome.biomechat.BiomeChat;
-import pw.biome.biomechat.obj.PlayerCache;
+import pw.biome.biomechat.obj.Corp;
 import pw.biome.biomechat.obj.ScoreboardHook;
 import pw.biome.hideandseek.HideAndSeek;
 import pw.biome.hideandseek.objects.HSPlayer;
 import pw.biome.hideandseek.objects.HSTeam;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
@@ -44,7 +45,7 @@ public class GameManager implements ScoreboardHook {
     private final List<BukkitTask> taskList = new ArrayList<>();
 
     @Getter
-    private final List<UUID> exemptPlayers = new ArrayList<>();
+    private final HashSet<UUID> exemptPlayers = new HashSet<>();
 
     private int scoreboardTaskId;
 
@@ -53,7 +54,7 @@ public class GameManager implements ScoreboardHook {
         BiomeChat biomeChat = BiomeChat.getPlugin();
         biomeChat.stopScoreboardTask();
         biomeChat.registerHook(this);
-        biomeChat.restartScoreboardTask();
+        this.restartScoreboardTask();
 
         this.hiders = new HSTeam("Hider", TeamType.HIDER);
         this.seekers = new HSTeam("Seeker", TeamType.SEEKER);
@@ -124,14 +125,10 @@ public class GameManager implements ScoreboardHook {
 
     public void updateScoreboards() {
         if (gameRunning) {
-            ImmutableList<Player> onlinePlayers = ImmutableList.copyOf(Bukkit.getServer().getOnlinePlayers());
-            onlinePlayers.forEach(player -> {
+            for (Player player : Bukkit.getOnlinePlayers()) {
                 HSPlayer hsPlayer = HSPlayer.getExact(player.getUniqueId());
-                PlayerCache playerCache = PlayerCache.getFromUUID(player.getUniqueId());
-
-                ChatColor prefix = playerCache.getRank().getPrefix();
-
-                boolean afk = playerCache.isAFK();
+                ChatColor prefix = Corp.getCorpForUser(player.getUniqueId()).getPrefix();
+                boolean afk = BiomeChat.getPlugin().isAFK(player);
 
                 if (afk) {
                     prefix = ChatColor.GRAY;
@@ -145,7 +142,7 @@ public class GameManager implements ScoreboardHook {
                     default:
                         player.setPlayerListName(prefix + player.getDisplayName());
                 }
-            });
+            }
         }
     }
 
@@ -160,8 +157,8 @@ public class GameManager implements ScoreboardHook {
     @Override
     public void restartScoreboardTask() {
         if (this.scoreboardTaskId != 0) {
-            Bukkit.getScheduler().runTaskTimerAsynchronously(HideAndSeek.getInstance(),
-                    this::updateScoreboards, 20, 20);
+            this.scoreboardTaskId = Bukkit.getScheduler().runTaskTimerAsynchronously(HideAndSeek.getInstance(),
+                    this::updateScoreboards, 20, 20).getTaskId();
         }
     }
 
