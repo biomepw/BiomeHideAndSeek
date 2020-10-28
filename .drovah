@@ -2,5 +2,5 @@
 commands = ["mvn clean package"]
 
 [archive]
-files = ["build/libs/BiomeHideAndSeek-"]
+files = ["target/BiomeHideAndSeek-"]
 append_buildnumber = true
