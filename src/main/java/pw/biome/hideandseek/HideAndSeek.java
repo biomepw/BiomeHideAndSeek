@@ -29,8 +29,6 @@ public final class HideAndSeek extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new HideAndSeekListener(), this);
 
         saveDefaultConfig();
-
-        gameManager.setupGame();
     }
 
     @Override

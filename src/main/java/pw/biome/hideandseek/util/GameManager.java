@@ -69,6 +69,8 @@ public class GameManager implements ScoreboardHook {
     }
 
     public void createGame() {
+        setupGame();
+
         if (gameRunning) return;
         ImmutableList<Player> onlinePlayers = ImmutableList.copyOf(Bukkit.getOnlinePlayers());
         Player randomPlayer = onlinePlayers.get(random.nextInt(onlinePlayers.size()));
